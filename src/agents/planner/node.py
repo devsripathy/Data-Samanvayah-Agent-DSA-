@@ -14,7 +14,8 @@ async def planner_node(state: DSAState) -> dict:
     llm = ChatOpenAI(model=settings.llm_model, api_key=settings.openai_api_key)
     
     # Simplified LLM prompt for demonstration
-    prompt = f"Analyze this schema and suggest a plan: {state.dataset_metadata.schema}"
+    # Updated to use dataset_schema instead of schema
+    prompt = f"Analyze this schema and suggest a plan: {state.dataset_metadata.dataset_schema}"
     # response = await llm.ainvoke(prompt) 
     
     plan = PlannerContext(
