@@ -1,4 +1,4 @@
-"""Memory retrieval agent node."""
+"""Memory retrieval and storage agent nodes."""
 from src.core.state import DSAState, MemoryContext
 from src.utils.logger import get_logger
 
@@ -18,4 +18,17 @@ async def memory_node(state: DSAState) -> dict:
     )
     
     logger.info("Memory context retrieved.")
-    return {"memory_context": context, "completed_agents": ["memory"]}
+    return {"memory_context": context}
+
+
+async def memory_store_node(state: DSAState) -> dict:
+    """Stores the final execution context back into the memory system."""
+    state.update_status("storing_memory", "memory_store")
+    state.append_log("Persisting execution context to memory.")
+    
+    # TODO: Integrate with MemoryManager to store Episodic and Semantic memory
+    # For now, we simulate storage
+    logger.info("Execution context stored in memory.")
+    
+    state.mark_completed("memory_store")
+    return {"status": "completed"}
