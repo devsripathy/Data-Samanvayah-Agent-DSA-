@@ -43,7 +43,7 @@ class LogEntry(TypedDict):
 class DatasetMetadata(BaseModel):
     """Metadata and schema information for the ingested dataset."""
     
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+model_config = ConfigDict(arbitrary_types_allowed=True)
 
     dataset_path: str
     dataset_name: str
