@@ -200,14 +200,15 @@ async def execute_pipeline(
         async for event in graph.astream(initial_state, config=config, stream_mode="updates"):
             for node_name, node_state in event.items():
                 if node_name != "__start__":
-                    console.print(f"[green]✓[/green] {node_name}: {node_state.get('status', 'running')}")
+                    status = node_state.get('status', 'running')
+                    console.print(f"[green]*[/green] {node_name}: {status}")
         
         # Get final state from checkpoint
         final_state_obj = graph.get_state(config)
         final_state = DSAState(**final_state_obj.values) if final_state_obj else initial_state
         
         logger.info(f"Pipeline completed with status: {final_state.status}")
-        console.print("[bold green]✓ Pipeline execution completed![/bold green]")
+        console.print("[bold green]Pipeline execution completed![/bold green]")
         
         # Save checkpoint
         save_session_checkpoint(final_state.session_id, final_state)
