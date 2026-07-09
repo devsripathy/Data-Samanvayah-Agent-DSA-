@@ -20,7 +20,7 @@ async def quality_node(state: DSAState) -> dict:
         rows=len(df),
         columns=len(df.columns),
         file_type="csv",
-        schema={col: str(dtype) for col, dtype in df.dtypes.items()},
+        dataset_schema={col: str(dtype) for col, dtype in df.dtypes.items()}, # Updated to dataset_schema
         missing_summary=df.isnull().sum().to_dict()
     )
     
