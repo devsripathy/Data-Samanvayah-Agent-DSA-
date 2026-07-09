@@ -77,13 +77,6 @@ python main.py run data/sample.csv --target target_col
 # Or via CLI entrypoint
 dsa run data/sample.csv -t target_col
 ```
-
-### 📸 Example Output
-![DSA Pipeline Execution](docs/assets/terminal_screenshot.png)
-*(Placeholder: Add a screenshot of your terminal showing the structured logs, agent transitions, and final metrics output here)*
-
----
-
 ## 🐳 Docker Deployment
 ```bash
 docker build -t dsa-agent:latest .
