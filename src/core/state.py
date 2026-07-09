@@ -43,7 +43,7 @@ class LogEntry(TypedDict):
 class DatasetMetadata(BaseModel):
     """Metadata and schema information for the ingested dataset."""
     
-model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(arbitrary_types_allowed=True, populate_by_name=True)
 
     dataset_path: str
     dataset_name: str
@@ -51,7 +51,7 @@ model_config = ConfigDict(arbitrary_types_allowed=True)
     rows: int
     columns: int
     file_type: str
-    schema: dict[str, Any]
+    dataset_schema: dict[str, Any] = Field(alias="schema")
     missing_summary: dict[str, int]
 
 
