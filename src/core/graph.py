@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 from typing import Annotated, Any, Literal
-from typing_extensions import TypedDict
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
