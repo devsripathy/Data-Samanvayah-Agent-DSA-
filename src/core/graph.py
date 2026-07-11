@@ -13,8 +13,10 @@ import logging
 from typing import Annotated, Any, Literal
 from typing_extensions import TypedDict
 
+from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from src.agents.critic.node import critic_node
 from src.agents.explorer.node import explorer_node
@@ -116,7 +118,7 @@ def build_dsa_graph(
     interrupt_before: list[str] | None = None,
     interrupt_after: list[str] | None = None,
     enable_hitl: bool = True,
-) -> StateGraph:
+) -> CompiledStateGraph:
     """
     Constructs and compiles the DSA LangGraph with full enterprise features.
     
@@ -222,7 +224,7 @@ def build_dsa_graph(
 # Mermaid Diagram Generation
 # ---------------------------------------------------------------------------
 
-def generate_mermaid_diagram(graph: StateGraph | None = None) -> str:
+def generate_mermaid_diagram(graph: CompiledStateGraph | None = None) -> str:
     """
     Generates a Mermaid diagram string for visualization.
     
@@ -274,7 +276,7 @@ dsa_graph = build_dsa_graph(enable_hitl=True)
 # Utility Functions
 # ---------------------------------------------------------------------------
 
-def get_graph_with_sqlite_persistence(db_path: str = "./data/dsa_checkpoints.db") -> StateGraph:
+def get_graph_with_sqlite_persistence(db_path: str = "./data/dsa_checkpoints.db") -> CompiledStateGraph:
     """
     Creates a graph with SQLite-based persistence for production use.
     
@@ -285,7 +287,7 @@ def get_graph_with_sqlite_persistence(db_path: str = "./data/dsa_checkpoints.db"
         Compiled graph with SQLite checkpointer.
     """
     try:
-        from langgraph.checkpoint.sqlite import SqliteSaver
+        from langgraph.checkpoint.sqlite import SqliteSaver  # type: ignore
         
         checkpointer = SqliteSaver.from_conn_string(db_path)
         logger.info(f"Using SQLite checkpointer at {db_path}")
@@ -295,7 +297,7 @@ def get_graph_with_sqlite_persistence(db_path: str = "./data/dsa_checkpoints.db"
         return build_dsa_graph()
 
 
-def get_graph_with_postgres_persistence(connection_string: str) -> StateGraph:
+def get_graph_with_postgres_persistence(connection_string: str) -> CompiledStateGraph:
     """
     Creates a graph with PostgreSQL-based persistence for production use.
     
@@ -306,7 +308,7 @@ def get_graph_with_postgres_persistence(connection_string: str) -> StateGraph:
         Compiled graph with Postgres checkpointer.
     """
     try:
-        from langgraph.checkpoint.postgres import PostgresSaver
+        from langgraph.checkpoint.postgres import PostgresSaver  # type: ignore
         
         checkpointer = PostgresSaver.from_conn_string(connection_string)
         logger.info("Using PostgreSQL checkpointer")
@@ -321,9 +323,9 @@ def get_graph_with_postgres_persistence(connection_string: str) -> StateGraph:
 # ---------------------------------------------------------------------------
 
 async def stream_graph(
-    graph: StateGraph | None = None,
+    graph: CompiledStateGraph | None = None,
     initial_state: DSAState | None = None,
-    config: dict[str, Any] | None = None,
+    config: RunnableConfig | None = None,
 ):
     """
     Streams the graph execution for real-time monitoring.
@@ -354,7 +356,7 @@ async def stream_graph(
 # ---------------------------------------------------------------------------
 
 def get_state_at_checkpoint(
-    graph: StateGraph | None = None,
+    graph: CompiledStateGraph | None = None,
     thread_id: str = "default",
     checkpoint_id: str | None = None,
 ) -> dict[str, Any]:
@@ -372,7 +374,7 @@ def get_state_at_checkpoint(
     if graph is None:
         graph = dsa_graph
     
-    config = {"configurable": {"thread_id": thread_id}}
+    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
     
     if checkpoint_id:
         config["configurable"]["checkpoint_id"] = checkpoint_id
@@ -386,7 +388,7 @@ def get_state_at_checkpoint(
 
 
 def list_checkpoints(
-    graph: StateGraph | None = None,
+    graph: CompiledStateGraph | None = None,
     thread_id: str = "default",
 ) -> list[dict[str, Any]]:
     """
@@ -402,7 +404,7 @@ def list_checkpoints(
     if graph is None:
         graph = dsa_graph
     
-    config = {"configurable": {"thread_id": thread_id}}
+    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
     
     try:
         checkpoints = list(graph.get_state_history(config))
