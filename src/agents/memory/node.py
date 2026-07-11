@@ -13,7 +13,7 @@ async def memory_node(state: DSAState) -> dict:
     # For now, we simulate retrieval
     context = MemoryContext(
         retrieved_runs=[{"run_id": "123", "status": "success"}],
-        semantic_matches=["classification_task"],
+        semantic_matches=[{"task": "classification", "similarity": 0.85}],
         procedural_rules=["Handle missing values before encoding"]
     )
     

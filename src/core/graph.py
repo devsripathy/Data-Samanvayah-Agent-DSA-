@@ -4,7 +4,7 @@ LangGraph workflow definition for the Data Samanvayah Agent (DSA).
 This module constructs the complete multi-agent orchestration graph with 
 support for checkpointing, streaming, human-in-the-loop interrupts, 
 time travel, and dynamic routing. It includes Mermaid diagram generation 
-for visualization and documentation.
+for visualization and documentation, and LangSmith observability.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from src.agents.quality.node import quality_node
 from src.agents.supervisor.node import supervisor_node
 from src.agents.trainer.node import trainer_node
 from src.core.state import DSAState
+from src.core.observability import trace_agent_execution, trace_decision_point
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,10 @@ def route_supervisor(state: DSAState) -> Literal["planner", "explorer", "critic"
 
 def route_critic(state: DSAState) -> Literal["supervisor", "end"]:
     """
-    Routes based on critic evaluation results.
+    Routes based on critic evaluation results with HITL support.
+    
+    If HITL is enabled and results are ambiguous/borderline, routes to
+    human approval. Otherwise routes based on critic's pass/fail decision.
     
     Args:
         state: Current DSA state with critic context.
@@ -71,13 +75,35 @@ def route_critic(state: DSAState) -> Literal["supervisor", "end"]:
     Returns:
         'supervisor' if retry needed, 'end' if workflow complete.
     """
-    if state.critic_context and state.critic_context.passed:
-        logger.info("Critic passed. Routing to memory store.")
-        return "supervisor"
-    else:
-        logger.info("Critic failed. Routing back to supervisor for retry decision.")
+    if not state.critic_context:
+        logger.warning("No critic context found. Routing to supervisor for retry.")
         state.metadata["next_agent"] = "retry"
         return "supervisor"
+    
+    # Check if critic passed
+    if state.critic_context.passed:
+        logger.info("Critic passed. Routing to memory store.")
+        return "supervisor"
+    
+    # Critic failed - check if HITL is enabled for ambiguous cases
+    confidence = getattr(state.critic_context, 'confidence', 0.0)
+    enable_hitl = state.user_preferences.get("enable_hitl", True)
+    hitl_threshold = state.user_preferences.get("hitl_confidence_threshold", 0.7)
+    
+    # If confidence is low and HITL is enabled, request human approval
+    if enable_hitl and confidence < hitl_threshold:
+        logger.info(f"Low confidence score ({confidence}). Requesting human approval.")
+        state.request_human_approval(
+            f"Critic evaluation inconclusive (confidence: {confidence}). "
+            f"Issues found: {', '.join(state.critic_context.issues_found)}\n"
+            f"Approve to continue or provide feedback?"
+        )
+        return "supervisor"  # Will pause here if HITL interrupt is configured
+    
+    # High confidence failure - retry without human intervention
+    logger.info("Critic failed with high confidence. Routing back to supervisor for retry.")
+    state.metadata["next_agent"] = "retry"
+    return "supervisor"
 
 
 # ---------------------------------------------------------------------------
@@ -88,15 +114,22 @@ def build_dsa_graph(
     checkpointer: Any | None = None,
     interrupt_before: list[str] | None = None,
     interrupt_after: list[str] | None = None,
+    enable_hitl: bool = True,
 ) -> StateGraph:
     """
     Constructs and compiles the DSA LangGraph with full enterprise features.
+    
+    Supports human-in-the-loop interrupts before the Critic agent for
+    ambiguous/borderline evaluation cases. When enable_hitl=True and the
+    user_preferences flag is set, the graph will pause before Critic
+    execution or route through a human approval node.
     
     Args:
         checkpointer: Optional checkpoint saver for persistence and time travel.
                      Defaults to MemorySaver if None.
         interrupt_before: List of node names to interrupt before execution.
         interrupt_after: List of node names to interrupt after execution.
+        enable_hitl: Whether to enable human-in-the-loop interrupts.
         
     Returns:
         Compiled LangGraph StateGraph instance.
@@ -105,6 +138,14 @@ def build_dsa_graph(
     if checkpointer is None:
         checkpointer = MemorySaver()
         logger.info("Using in-memory checkpointer. State will not persist across restarts.")
+    
+    # Set up HITL interrupts if enabled
+    if enable_hitl:
+        if interrupt_before is None:
+            interrupt_before = []
+        if "critic" not in interrupt_before:
+            interrupt_before.append("critic")
+        logger.info("HITL enabled: Critic node will interrupt for potential human review.")
     
     # Create the workflow
     workflow = StateGraph(DSAState)
@@ -171,6 +212,8 @@ def build_dsa_graph(
     )
     
     logger.info("DSA graph compiled successfully with checkpointing and interrupt support.")
+    if enable_hitl:
+        logger.info("HITL configuration: Critic node configured for human-in-the-loop review.")
     return compiled_graph
 
 
@@ -222,8 +265,8 @@ def save_mermaid_diagram(output_path: str = "docs/dsa_graph.mmd") -> None:
 # Global Graph Instance
 # ---------------------------------------------------------------------------
 
-# Default graph with in-memory checkpointing
-dsa_graph = build_dsa_graph()
+# Default graph with in-memory checkpointing and HITL enabled
+dsa_graph = build_dsa_graph(enable_hitl=True)
 
 
 # ---------------------------------------------------------------------------

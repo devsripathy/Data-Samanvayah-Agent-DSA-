@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated, Any, TypedDict
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -93,6 +93,7 @@ class CriticContext(BaseModel):
     """Context and evaluation results from the Critic agent."""
     
     passed: bool = False
+    confidence: float = 0.0
     issues_found: list[str] = Field(default_factory=list)
     retry_reason: str | None = None
     retry_count: int = 0
@@ -109,15 +110,22 @@ class DSAState(BaseModel):
     
     This model encapsulates the entire state of the execution, including 
     dataset references, agent contexts, accumulated logs/messages, and 
-    execution metadata. It utilizes Pydantic v2 and LangGraph's Annotated 
-    types for reducer-based state accumulation.
+    execution metadata. It utilizes Pydantic v2 with full serialization 
+    support for checkpointing and human-in-the-loop workflows.
     """
     
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        serialize_as_any=True,
+    )
 
     # Core Data References
     dataset: Any | None = None
     cleaned_dataset: Any | None = None
+    
+    # Session Management for Checkpointing
+    session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    thread_id: str = Field(default_factory=lambda: f"thread_{uuid.uuid4().hex[:8]}")
     
     # Agent Contexts
     dataset_metadata: DatasetMetadata | None = None
@@ -143,6 +151,10 @@ class DSAState(BaseModel):
     current_agent: str | None = None
     retry_counter: int = 0
     metadata: dict[str, Any] = Field(default_factory=dict)
+    
+    # Human-in-the-Loop Support
+    pending_human_approval: bool = False
+    approval_request: str | None = None
 
     # -------------------------------------------------------------------------
     # Helper Methods
@@ -161,6 +173,8 @@ class DSAState(BaseModel):
         self.current_agent = None
         self.retry_counter = 0
         self.timestamp = datetime.now(timezone.utc)
+        self.pending_human_approval = False
+        self.approval_request = None
 
     def append_log(self, message: str, level: str = "INFO") -> None:
         """
@@ -208,3 +222,34 @@ class DSAState(BaseModel):
         self.status = status
         if current_agent is not None:
             self.current_agent = current_agent
+    
+    def request_human_approval(self, request: str) -> None:
+        """
+        Requests human approval by setting the pending flag and request message.
+        Used for human-in-the-loop workflows.
+        
+        Args:
+            request: The message to display to the human reviewer.
+        """
+        self.pending_human_approval = True
+        self.approval_request = request
+        self.status = "awaiting_approval"
+    
+    def approve_and_continue(self) -> None:
+        """
+        Clears the human approval flags to allow workflow to continue.
+        """
+        self.pending_human_approval = False
+        self.approval_request = None
+        self.status = "approved"
+    
+    def model_dump_for_checkpoint(self) -> dict[str, Any]:
+        """
+        Returns a checkpoint-safe dictionary representation of the state.
+        Suitable for serialization to JSON or other formats.
+        """
+        return self.model_dump(
+            exclude_none=False,
+            mode='json',
+            serialize_as_any=True,
+        )
