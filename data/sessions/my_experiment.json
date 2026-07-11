@@ -1,10 +1,10 @@
 {
-  "session_id": "demo_session",
+  "session_id": "my_experiment",
   "state": {
     "dataset": "C:\\Users\\91984\\copilot-worktrees\\data-samanvayah-agent\\devsripathy-cuddly-chainsaw\\data\\sample.csv",
     "cleaned_dataset": null,
-    "session_id": "demo_session",
-    "thread_id": "thread_ebed1243",
+    "session_id": "my_experiment",
+    "thread_id": "thread_8df18e27",
     "dataset_metadata": null,
     "memory_context": null,
     "planner_context": null,
@@ -14,22 +14,16 @@
     "logs": [
       {
         "level": "INFO",
-        "message": "Pipeline initialized with session_id=demo_session",
-        "timestamp": "2026-07-09T10:00:16.348149+00:00"
-      },
-      {
-        "level": "INFO",
-        "message": "Pipeline initialized with session_id=demo_session",
-        "timestamp": "2026-07-09T10:01:26.314340+00:00"
+        "message": "Pipeline initialized with session_id=my_experiment",
+        "timestamp": "2026-07-09T10:02:07.366810+00:00"
       }
     ],
     "messages": [],
     "errors": [
-      "Missing credentials. Please pass an `api_key`, `workload_identity`, `admin_api_key`, or set the `OPENAI_API_KEY` or `OPENAI_ADMIN_KEY` environment variable.",
       "Missing credentials. Please pass an `api_key`, `workload_identity`, `admin_api_key`, or set the `OPENAI_API_KEY` or `OPENAI_ADMIN_KEY` environment variable."
     ],
-    "execution_id": "5cc5ff8f-a64e-4797-a2e0-49c05cc645d8",
-    "timestamp": "2026-07-09T10:00:16.348054Z",
+    "execution_id": "d94097c7-8acb-4120-9786-925c057535c9",
+    "timestamp": "2026-07-09T10:02:07.366758Z",
     "user_preferences": {
       "enable_hitl": true,
       "dataset_path": "C:\\Users\\91984\\copilot-worktrees\\data-samanvayah-agent\\devsripathy-cuddly-chainsaw\\data\\sample.csv"
@@ -42,5 +36,5 @@
     "pending_human_approval": false,
     "approval_request": null
   },
-  "timestamp": "2026-07-09T10:00:16.348054+00:00"
+  "timestamp": "2026-07-09T10:02:07.366758+00:00"
 }
