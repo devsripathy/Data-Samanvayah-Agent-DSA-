@@ -28,5 +28,8 @@ observability = [
     "langfuse>=2.0.0",
 ]
 
+[tool.pyrefly]
+source_paths = ["."]
+
 [project.scripts]
 dsa = "src.cli.app:app"
