@@ -4,10 +4,12 @@
 
 DSA (Data Samanvayah - "Data Coordination" in Sanskrit) is not just an AutoML tool; it is a stateful, multi-agent orchestration system designed to mimic a team of data scientists. It utilizes episodic memory to learn from past executions, dynamically plans preprocessing steps, and employs a critic-driven retry loop to ensure model quality.
 
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![LangGraph](https://img.shields.io/badge/LangGraph-0.2+-orange.svg)](https://github.com/langchain-ai/langgraph)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](./Dockerfile)
-[![CI Status](https://github.com/yourusername/data-samanvayah-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/data-samanvayah-agent/actions)
+[![Python 3.12+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![LangGraph 0.2+](https://img.shields.io/badge/LangGraph-0.2+-orange.svg)](https://github.com/langchain-ai/langgraph)
+[![LangSmith Observability](https://img.shields.io/badge/LangSmith-Enabled-6366f1.svg)](https://smith.langchain.com)
+[![Human-in-the-Loop](https://img.shields.io/badge/HITL-Supported-10b981.svg)](#human-in-the-loop)
+[![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](./Dockerfile)
+[![CI Status](https://github.com/devsripathy/Data-Samanvayah-Agent/actions/workflows/ci.yml/badge.svg)](https://github.com/devsripathy/Data-Samanvayah-Agent/actions)
 
 ---
 
@@ -53,161 +55,120 @@ graph TD
 ### 1. Installation
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/data-samanvayah-agent.git
-cd data-samanvayah-agent
+git clone https://github.com/devsripathy/Data-Samanvayah-Agent.git
+cd Data-Samanvayah-Agent
 
-# Install dependencies using uv (or pip install -e ".[dev]")
-uv venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
+# Create virtual environment (using uv or venv)
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -e ".[dev]"  # Includes dev tools for testing
+# OR: pip install -e .  # Production installation
 ```
 
-### 2. Configuration
-Copy the example environment file and add your LLM API key:
+### 2. Configure Environment
 ```bash
+# Copy example environment file
 cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
+
+# Edit .env and add your keys:
+# - OPENAI_API_KEY=sk_...
+# - LANGSMITH_API_KEY=... (optional, for observability)
+# - VECTOR_STORE_TYPE=memory (or qdrant/chroma/pinecone)
 ```
 
 ### 3. Run the Pipeline
 ```bash
-# Run via Python
-python main.py run data/sample.csv --target target_col
+# List available sessions
+python main.py list-sessions
 
-# Or via CLI entrypoint
-dsa run data/sample.csv -t target_col
+# Create and run a new session
+python main.py run data/sample.csv --session-id my_experiment
+
+# Resume a previous session
+python main.py resume my_experiment
+
+# Check session status
+python main.py status my_experiment
 ```
 ## 🐳 Docker Deployment
 ```bash
+# Build the Docker image
 docker build -t dsa-agent:latest .
-docker run --env-file .env -v $(pwd)/artifacts:/app/artifacts dsa-agent:latest run data/sample.csv
+
+# Run with .env file
+docker run --env-file .env -v $(pwd)/data:/app/data -v $(pwd)/artifacts:/app/artifacts dsa-agent:latest python main.py run /app/data/sample.csv --session-id docker_run
 ```
+
+## ✅ Testing & Quality Assurance
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=src --cov-report=html
+
+# Run linting and type checking
+ruff check src/ tests/ main.py
+mypy src/ --ignore-missing-imports
+black --check src/ tests/ main.py
+
+# Validate syntax
+python -m py_compile main.py
+find src -name "*.py" -exec python -m py_compile {} \;
 ```
+
+**CI/CD Pipeline**: Automated tests run on every push and PR via GitHub Actions (see `.github/workflows/ci.yml`)
 
 ---
 
-### 2. Priority Fix: Clean `main.py` Entry Point
-This replaces the basic script with a robust, production-ready CLI using `typer`.
+## 🎯 Production Features (v2.0+)
 
-```python
-"""Data Samanvayah Agent (DSA) CLI Entry Point."""
-import asyncio
-import typer
-from pathlib import Path
-from rich.console import Console
+### Session Management & Persistence
+- **Automatic Session Tracking**: Create named sessions with `--session-id`
+- **Thread ID Management**: Auto-generated thread IDs for LangGraph checkpointing
+- **Session Resumption**: Resume incomplete sessions and continue from where you left off
+- **JSON Checkpoints**: Session state saved to `./data/sessions/` for recovery
 
-from src.core.graph import dsa_graph
-from src.core.state import DSAState
-from src.utils.logger import get_logger
+### Human-in-the-Loop (HITL)
+- **Confidence-Based Routing**: Supervisor makes decisions based on confidence scores
+- **Intelligent Interrupts**: Pauses before Critic agent when confidence is low
+- **Approval Workflow**: Human reviewers can approve/reject decisions and continue
+- **Enable with**: `--enable-hitl` flag or `ENABLE_HITL=true` in `.env`
 
-logger = get_logger(__name__)
-console = Console()
-app = typer.Typer(help="Data Samanvayah Agent (DSA) - Enterprise AutoML Pipeline", add_completion=False)
+### Observability & Tracing
+- **LangSmith Integration**: Full tracing of agent execution
+- **Custom Event Logging**: Log decision points and trace events
+- **Optional Setup**: Works without LangSmith; enable with `LANGSMITH_API_KEY`
+- **Dashboard Support**: View agent conversations in LangSmith dashboard
 
-@app.command()
-def run(
-    dataset: Path = typer.Argument(..., exists=True, help="Path to the input dataset (CSV/Parquet)."),
-    target: str = typer.Option(None, "--target", "-t", help="Target column for prediction (auto-detected if omitted)."),
-    max_retries: int = typer.Option(3, "--retries", "-r", help="Maximum retry loops for the Critic agent."),
-):
-    """Execute the DSA pipeline on a given dataset."""
-    console.rule(f"[bold blue]Initializing DSA for dataset:[/bold blue] {dataset.name}")
-    
-    # Initialize State
-    initial_state = DSAState(
-        dataset=str(dataset),
-        user_preferences={"target_column": target, "max_retries": max_retries}
-    )
-    initial_state.append_log("Pipeline initialized via CLI.")
-    
-    try:
-        # Execute Graph
-        final_state = asyncio.run(dsa_graph.ainvoke(initial_state))
-        
-        # Output Results
-        console.rule("[bold green]Execution Complete[/bold green]")
-        console.print(f"Status: [cyan]{final_state.status}[/cyan]")
-        
-        if final_state.training_results and final_state.training_results.best_model:
-            console.print(f"🏆 Best Model: [yellow]{final_state.training_results.best_model}[/yellow]")
-            console.print(f"📊 Metrics: {final_state.training_results.metrics}")
-            console.print(f"📁 Artifacts saved to: [dim]artifacts/[/dim]")
-        else:
-            console.print("[red]No model was successfully trained.[/red]")
-            
-        if final_state.errors:
-            console.print(f"[red]Errors encountered: {len(final_state.errors)}[/red]")
-            
-    except KeyboardInterrupt:
-        console.print("\n[bold red]Execution interrupted by user.[/bold red]")
+### Vector Store Integration
+- **Memory Agent**: Retrieves similar past executions
+- **Multiple Backends**: Support for Qdrant, Chroma, Pinecone, or in-memory
+- **Configure with**: `VECTOR_STORE_TYPE` environment variable
+- **Extensible**: Easy to add custom vector store implementations
+
+### Type Safety & Serialization
+- **Pydantic v2 Models**: Fully typed DSAState with automatic validation
+- **JSON Serialization**: Safe checkpoint serialization with custom field serializers
+- **Model Validation**: Automatic validation of state transitions
+
+---
+
+## 📚 Documentation
+
+- **[UPGRADES.md](./UPGRADES.md)** - Complete feature guide with API reference
+- **[SETUP.md](./SETUP.md)** - Getting started and configuration guide
+- **[ARCHITECTURE_DIAGRAMS.md](./ARCHITECTURE_DIAGRAMS.md)** - System architecture visualizations
+- **[README_UPGRADES.md](./README_UPGRADES.md)** - Feature highlights and examples
+
+---
+
+## 🏗️ Production-Ready Architecture
         raise typer.Exit(code=130)
     except Exception as e:
         logger.error(f"Pipeline failed: {e}")
         console.print(f"[bold red]❌ Pipeline failed:[/bold red] {e}")
         raise typer.Exit(code=1)
-
-if __name__ == "__main__":
-    app()
-```
-
----
-
-### 3. Priority Fix: `.env.example` & CI/CD
-
-**Create `.env.example`** in the root directory:
-```env
-# LLM Configuration
-LLM_PROVIDER=openai
-LLM_MODEL=gpt-4o
-OPENAI_API_KEY=sk-your-key-here
-
-# Vector Store / Memory (Optional for Phase 1)
-VECTOR_STORE_URL=http://localhost:6333
-VECTOR_STORE_COLLECTION=dsa_memory
-
-# Execution
-MAX_RETRIES=3
-LOG_LEVEL=INFO
-```
-
-**Create `.github/workflows/ci.yml`** for automated testing:
-```yaml
-name: DSA CI Pipeline
-
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
-        
-    - name: Lint with Ruff
-      run: |
-        ruff check src/ tests/
-        
-    - name: Type check with MyPy
-      run: |
-        mypy src/ --ignore-missing-imports
-        
-    - name: Test with Pytest
-      run: |
-        pytest tests/ --cov=src --cov-report=xml
