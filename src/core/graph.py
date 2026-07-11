@@ -10,7 +10,7 @@ for visualization and documentation, and LangSmith observability.
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from typing_extensions import TypedDict
 
 from langgraph.checkpoint.memory import MemorySaver
