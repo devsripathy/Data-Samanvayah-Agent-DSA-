@@ -16,16 +16,10 @@
         "level": "INFO",
         "message": "Pipeline initialized with session_id=demo_session",
         "timestamp": "2026-07-09T10:00:16.348149+00:00"
-      },
-      {
-        "level": "INFO",
-        "message": "Pipeline initialized with session_id=demo_session",
-        "timestamp": "2026-07-09T10:01:26.314340+00:00"
       }
     ],
     "messages": [],
     "errors": [
-      "Missing credentials. Please pass an `api_key`, `workload_identity`, `admin_api_key`, or set the `OPENAI_API_KEY` or `OPENAI_ADMIN_KEY` environment variable.",
       "Missing credentials. Please pass an `api_key`, `workload_identity`, `admin_api_key`, or set the `OPENAI_API_KEY` or `OPENAI_ADMIN_KEY` environment variable."
     ],
     "execution_id": "5cc5ff8f-a64e-4797-a2e0-49c05cc645d8",
