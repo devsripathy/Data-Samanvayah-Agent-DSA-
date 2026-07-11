@@ -2,6 +2,8 @@
 import pandas as pd
 from src.core.state import DSAState, DatasetMetadata
 from src.utils.logger import get_logger
+from typing_extensions import TypedDict
+
 
 logger = get_logger(__name__)
 
