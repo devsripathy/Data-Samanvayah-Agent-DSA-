@@ -1,6 +1,8 @@
 """Explorer agent node for EDA and preprocessing."""
 from src.core.state import DSAState
 from src.utils.logger import get_logger
+from typing_extensions import TypedDict
+
 
 logger = get_logger(__name__)
 
