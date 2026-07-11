@@ -11,7 +11,8 @@ from __future__ import annotations
 import operator
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, Any
+from typing_extensions import TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
