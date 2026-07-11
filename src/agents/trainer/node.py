@@ -1,6 +1,7 @@
 """Trainer agent node for model training."""
 from src.core.state import DSAState, TrainingResults
 from src.utils.logger import get_logger
+from typing_extensions import TypedDict
 import time
 
 logger = get_logger(__name__)
